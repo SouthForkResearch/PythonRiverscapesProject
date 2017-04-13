@@ -3,7 +3,7 @@
 from os import path
 from uuid import uuid4
 import xml.etree.ElementTree as ET
-# No arcpy or other non standard modules please!
+# No arcpy or other non-standard dependencies please!
 
 class Project(object):
     """Riverscapes Project Class
@@ -14,25 +14,30 @@ class Project(object):
 
         self.name = ''
         self.projectType = ""
+        self.projectVersion = ""
         self.projectPath = ''
         self.xmlname = 'project.rs.xml'
+        self.riverscapes_program_version = "1.2"
+        self.riverscapes_python_version = "1.0"
 
         self.ProjectMetadata = {}
         self.Realizations = {}
         self.InputDatasets = {}
 
-    def create(self,projectName,projectType):
+    def create(self,projectName,projectType,projectVersion=""):
 
         self.name = projectName
         self.projectType = projectType
-        self.addProjectMetadata("RiverscapesXMLVersion","1.2")
+        self.projectVersion = projectVersion
+        self.addProjectMetadata("RiverscapesProgramVersion",self.riverscapes_program_version)
+        self.addProjectMetadata("RiverscapesPythonProjectVersion",self.riverscapes_python_version)
 
     def addProjectMetadata(self,Name,Value):
         self.ProjectMetadata[Name] = Value
 
     def addInputDataset(self, name, id, relativePath, sourcePath):
 
-        newInputDataset = dataset()
+        newInputDataset = Dataset()
         newInputDataset.create(name,relativePath,origPath=sourcePath)
 
         #int = len(self.InputDatasets)
@@ -68,7 +73,7 @@ class Project(object):
 
         # Load Input Datasets
         for inputDatasetXML in root.findall("./Inputs/Vector"):
-            inputDataset = dataset()
+            inputDataset = Dataset()
             inputDataset.createFromXMLElement(inputDatasetXML)
             self.InputDatasets[inputDataset.id] = inputDataset
 
@@ -143,29 +148,7 @@ class Realization(object):
         self.metadata = {}
         self.analyses = {}
 
-
-class GNATRealization(object):
-
-    def __init__(self):
-
-        self.promoted = ''
-        self.dateCreated = ''
-        self.productVersion = ''
-        self.guid = ''
-        self.name = ''
-        self.id = 'Not_Assigned'
-
-        self.parameters = {}
-        self.metadata = {}
-        self.analyses = {}
-
-        self.RawStreamNetwork = ''
-        self.RawNetworkTable = ""
-
-        self.GNAT_StreamNetwork = dataset()
-        self.GNAT_NetworkTable = dataset()
-
-    def create(self,name, refRawStreamNetwork, outputGNAT_Network, refRawNetworkTable=None, outputGNAT_Table=None):
+    def create(self, name ):
 
         import datetime
 
@@ -175,17 +158,7 @@ class GNATRealization(object):
         self.guid = str(uuid4())
         self.name = name
 
-        self.RawStreamNetwork = refRawStreamNetwork
-        self.GNAT_StreamNetwork = outputGNAT_Network
-
-        if refRawNetworkTable:
-            self.RawNetworkTable = refRawNetworkTable
-        if outputGNAT_Table:
-            self.GNAT_NetworkTable = outputGNAT_Table
-
-        return
-
-    def createFromXMLElement(self, xmlElement,dictInputDatasets):
+    def createFromXMLElement(self, xmlElement, dictInputDatasets):
 
         # Pull Realization Data
         self.promoted =  xmlElement.get("promoted")
@@ -195,16 +168,6 @@ class GNATRealization(object):
         self.guid = xmlElement.get('guid')
 
         self.name = xmlElement.find('Name').text
-
-        # Pull Inputs
-        self.RawStreamNetwork = xmlElement.find('./Inputs/RawStreamNetwork').get('ref')
-        if xmlElement.find('./Inputs/RawNetworkTable'):
-            self.RawNetworkTable = xmlElement.find('./Inputs/RawNetworkTable').get('ref')
-
-        # Pull Outputs
-        self.GNAT_StreamNetwork.createFromXMLElement(xmlElement.find("./Outputs/Vector")) # Named type GNAT_StreamNetwork???
-        if xmlElement.find("./Outputs/GNAT_NetworkTable"):
-            self.GNAT_NetworkTable.createFromXMLElement(xmlElement.find("./Outputs/GNAT_NetworkTable"))
 
         # Pull Meta
         for nodeMeta in xmlElement.findall("./MetaData/Meta"):
@@ -219,6 +182,55 @@ class GNATRealization(object):
             analysis = Analysis()
             analysis.createFromXMLElement(analysisXML)
             self.analyses[analysis.name] = analysis
+
+        return
+
+    def getXMLNode(self,xmlNode):
+
+        
+
+        return xmlNode
+
+class GNATRealization(Realization):
+
+    def __init__(self):
+        Realization.__init__(self)
+
+        self.RawStreamNetwork = ''
+        self.RawNetworkTable = ""
+
+        self.GNAT_StreamNetwork = Dataset()
+        self.GNAT_NetworkTable = Dataset()
+
+    def createGNATRealization(self,name, refRawStreamNetwork, outputGNAT_Network, refRawNetworkTable=None,
+                              outputGNAT_Table=None):
+
+        super(GNATRealization, self).create(name)
+
+        self.RawStreamNetwork = refRawStreamNetwork
+        self.GNAT_StreamNetwork = outputGNAT_Network
+
+        if refRawNetworkTable:
+            self.RawNetworkTable = refRawNetworkTable
+        if outputGNAT_Table:
+            self.GNAT_NetworkTable = outputGNAT_Table
+
+        return
+
+    def createFromXMLElement(self, xmlElement, dictInputDatasets):
+
+        super(GNATRealization, self).createFromXMLElement(xmlElement, dictInputDatasets)
+
+        # Pull Inputs
+        self.RawStreamNetwork = xmlElement.find('./Inputs/RawStreamNetwork').get('ref')
+        if xmlElement.find('./Inputs/RawNetworkTable'):
+            self.RawNetworkTable = xmlElement.find('./Inputs/RawNetworkTable').get('ref')
+
+        # Pull Outputs
+        self.GNAT_StreamNetwork.createFromXMLElement(xmlElement.find("./Outputs/Vector")) # Named type GNAT_StreamNetwork???
+        if xmlElement.find("./Outputs/GNAT_NetworkTable"):
+            self.GNAT_NetworkTable.createFromXMLElement(xmlElement.find("./Outputs/GNAT_NetworkTable"))
+
         return
 
     def getXMLNode(self,xmlNode):
@@ -301,44 +313,39 @@ class GNATRealization(object):
         return
 
 
-class ConfinementRealization(object):
+class ConfinementRealization(Realization):
 
     def __init__(self):
 
-        self.promoted = ''
-        self.dateCreated = ''
-        self.productVersion = ''
-        self.guid = ''
-        self.name = ''
-        self.id = 'Not_Assigned'
+        Realization.__init__(self)
 
         self.StreamNetwork = ''
         self.ValleyBottom = ''
         self.ChannelPolygon = ''
 
-        self.OutputConfiningMargins = dataset()
-        self.OutputRawConfiningState = dataset()
+        self.OutputConfiningMargins = Dataset()
+        self.OutputRawConfiningState = Dataset()
 
         self.analyses = {}
 
-    def create(self, name, refStreamNetwork, refValleyBottom, refChannelPolygon, OutputConfiningMargins, OutputRawConfiningState):
+    def createConfinementRealization(self,
+                                     name,
+                                     refStreamNetwork,
+                                     refValleyBottom,
+                                     refChannelPolygon,
+                                     OutputConfiningMargins,
+                                     OutputRawConfiningState):
         """
         :param str name:
         :param str refStreamNetwork:
         :param str refValleyBottom:
         :param str refChannelPolygon:
-        :param dataset OutputConfiningMargins:
-        :param dataset OutputRawConfiningState:
+        :param Dataset OutputConfiningMargins:
+        :param Dataset OutputRawConfiningState:
         :return: none
         """
 
-        import datetime
-
-        self.promoted = ''
-        self.dateCreated = str(datetime.datetime.utcnow())
-        self.productVersion = ''
-        self.guid = str(uuid4())
-        self.name = name
+        super(ConfinementRealization, self).create(name)
 
         # StreamNetwork.type = "StreamNetwork"
         # ValleyBottom.type = "ValleyBottom"
@@ -356,16 +363,9 @@ class ConfinementRealization(object):
         self.OutputConfiningMargins = OutputConfiningMargins
         self.OutputRawConfiningState = OutputRawConfiningState
 
-    def createFromXMLElement(self, xmlElement,dictInputDatasets):
+    def createFromXMLElement(self, xmlElement, dictInputDatasets):
 
-        # Pull Realization Data
-        self.promoted =  xmlElement.get("promoted")
-        self.dateCreated = xmlElement.get("dateCreated")
-        self.productVersion = xmlElement.get('productVersion')
-        self.id = xmlElement.get('id')
-        self.guid = xmlElement.get('guid')
-
-        self.name = xmlElement.find('Name').text
+        super(ConfinementRealization, self).createFromXMLElement(xmlElement, dictInputDatasets)
 
         # Pull Inputs
         self.ValleyBottom = xmlElement.find('./Inputs/ValleyBottom').get('ref')
@@ -376,11 +376,6 @@ class ConfinementRealization(object):
         self.OutputConfiningMargins.createFromXMLElement(xmlElement.find("./Outputs/ConfiningMargins"))
         self.OutputRawConfiningState.createFromXMLElement(xmlElement.find("./Outputs/RawConfiningState"))
 
-        # Pull Analyses
-        for analysisXML in xmlElement.findall("./Analyses/*"):
-            analysis = Analysis()
-            analysis.createFromXMLElement(analysisXML)
-            self.analyses[analysis.name] = analysis
         return
 
 
@@ -458,9 +453,9 @@ class Analysis(object):
         self.parameters = {}
         self.outputDatasets = {}
 
-    def create(self,analysisName,analysisType):
-        self.name = analysisName
-        self.type = analysisType
+    def create(self,analysis_name, analysis_type):
+        self.name = analysis_name
+        self.type = analysis_type
         return
 
     def createFromXMLElement(self,xmlElement):
@@ -472,7 +467,7 @@ class Analysis(object):
             self.parameters[param.get('name')] = param.text
 
         for output in xmlElement.findall("./Outputs/*"):
-            outputDS = dataset()
+            outputDS = Dataset()
             outputDS.createFromXMLElement(output)
             self.outputDatasets[outputDS.name] = outputDS
 
@@ -503,7 +498,7 @@ class Analysis(object):
         return xmlNode
 
 
-class dataset(object):
+class Dataset(object):
 
     def __init__(self):
         self.id = 'NotAssinged' # also ref
