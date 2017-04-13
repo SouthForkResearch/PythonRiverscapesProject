@@ -26,17 +26,38 @@ write and update xml project file.
 
 Used to create a new project (from scratch).
 
+```
+project = Riverscapes.Project()
+project.create("My New Project","Confinement")
+```
+
 ***addProjectMetadata(*** *Name, Value* ***)***
 
 Adds Metadata to the project.
 
+```
+project.addProjectMetadata("MetaName","MetaValue")
+```
+
 Alternative method - add to the Project.ProjectMetadata dictionary directly.
+
+```
+project.ProjectMetadata["MetaName"] = "MetaValue"
+```
 
 ***addInputDataset(*** *name, id, relativePath, sourcePath* ***)***
 
 Creates a dataset object and adds it as an Input Dataset to the Project (but not tied to a specific Realization).
 
+```
+
+```
+
 Alternative Method - create a Dataset object then add to the Project.InputDataset dictionary directly.
+
+```
+project.ProjectMetadata["MetaName"] = "MetaValue"
+```
 
 ***get_dataset_id(*** *filename* ***)***
 
@@ -53,6 +74,10 @@ Adds a realization object to the Project.
 ***writeProjectXML(*** *xmlpath* ***)***
 
 Saves the Project as an xml file, specified by the xml path (note this is the full path and filename)
+
+```
+project.writeProjectXML(r"C:\Path\To\project.rs.xml")
+```
 
 **Properties**
 
@@ -108,7 +133,7 @@ Realization objects are used to store information about a Project Realization, i
 
 Used to create a new Realization (from scratch).
 
-********createFromXMLElement(*** *xmlElement, dictInputDatasets* ***)*** 
+***createFromXMLElement(*** *xmlElement, dictInputDatasets* ***)*** 
 
 Loads the information from an dataset xml node to the Realization object. 
 
