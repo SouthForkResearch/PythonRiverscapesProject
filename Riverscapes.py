@@ -198,8 +198,7 @@ class Realization(object):
             self.analyses[analysis.name] = analysis
 
         # Pull Inputs
-        for input in xmlElement.findall("./Inputs/*"):
-            input_attrib = input.get()
+
             #TODO Get inputs, possibly nested (need a way to store this for xml writing), could be ref or Dataset
 
         return
@@ -560,7 +559,7 @@ class Dataset(object):
         attributes = {}
         attributes["id"] = self.id
         if self.guid:
-            attributes['Guid'] = self.guid
+            attributes['guid'] = self.guid
 
         # Generate Node
         nodeInputDataset = ET.SubElement(xmlNode,self.type,attributes)
