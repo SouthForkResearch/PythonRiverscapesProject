@@ -462,6 +462,26 @@ class ConfinementRealization(Realization):
         return
 
 
+class VbetRealization(Realization):
+
+    def __init__(self):
+        Realization.__init__(self,"VBET")
+
+        self.TopographyDEM = Dataset()
+        self.TopographyFlow = Dataset()
+        self.TopographySlope = Dataset()
+
+        self.DrainageNetworkNetwork = Dataset()
+        self.DrainageNetworkBuffers = {}
+
+    def createFromXMLElement(self, xmlElement, dictInputDatasets):
+
+        super(VbetRealization, self).createFromXMLElement(xmlElement,dictInputDatasets)
+
+        # TODO: get the rest of the inputs, but could be ref or actual dataset object...
+
+
+
 class Analysis(object):
 
     def __init__(self):
