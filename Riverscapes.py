@@ -98,10 +98,20 @@ class Project(object):
 
         return
 
-    def addRealization(self, realization):
+    def get_next_realization_id(self):
 
         intRealizations = len(self.Realizations)
-        realization.id = self.projectType + "_" + str(intRealizations + 1)
+        realization_id = self.projectType + "_" + str(intRealizations + 1).zfill(3)
+
+        return realization_id
+
+    def addRealization(self, realization, realization_id=""):
+
+        if realization_id:
+            realization.id = realization_id
+        else:
+            intRealizations = len(self.Realizations)
+            realization.id = self.projectType + "_" + str(intRealizations + 1).zfill(3)
 
         self.Realizations[realization.name] = realization
         return
@@ -487,6 +497,7 @@ class Analysis(object):
     def __init__(self):
         self.name = ''
         self.type = ''
+        self.id = ""
         self.parameters = {}
         self.outputDatasets = {}
 
