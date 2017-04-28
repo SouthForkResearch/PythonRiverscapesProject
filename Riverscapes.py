@@ -460,7 +460,7 @@ class ConfinementRealization(Realization):
     def newAnalysisSegmentedNetwork(self, analysisName,paramFieldSegments,paramFieldConfinement,paramFieldConstriction,outputSegmentedConfinement):
 
         analysis = Analysis()
-        analysis.create(analysisName, "SegmentedNetwork")
+        analysis.create(analysisName, "ConfinementBySegments")
 
         analysis.parameters["SegmentField"] = paramFieldSegments
         analysis.parameters["ConfinementField"] = paramFieldConfinement
