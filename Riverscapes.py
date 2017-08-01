@@ -215,7 +215,7 @@ class Realization(object):
 
         # Prepare Attributes
         attributes = {}
-        attributes['promoted'] = str(self.promoted)
+        attributes['promoted'] = str(self.promoted).lower()
         attributes['dateCreated'] = str(self.dateCreated)
         attributes['id'] = str(self.id)
         if self.productVersion:
@@ -494,10 +494,16 @@ class SurveyDataRealization(Realization):
 
     def getXMLNode(self, xmlNode):
         nodeRealization = super(SurveyDataRealization, self).getXMLNode(xmlNode)
+        nodeRealization.set("projected", str(self.projection).lower())
 
         if self.datasets:
             for dsName, dsValue in self.datasets.iteritems():
                 dsValue.getXMLNode(nodeRealization)
+
+        if self.survey_extents:
+            nodeSurveyExtents = ET.SubElement(nodeRealization, "SurveyExtents")
+            for extentName, extent in self.survey_extents.iteritems():
+                extent.getXMLNode(nodeSurveyExtents)
 
         return nodeRealization
 
@@ -516,7 +522,7 @@ class TopographyRealization(Realization):
     def getXMLNode(self, xmlNode):
         nodeRealization = super(TopographyRealization, self).getXMLNode(xmlNode)
 
-        self.topotin.attributes['active'] = str(self.activetin)
+        self.topotin.attributes['active'] = str(self.activetin).lower()
         nodeTIN = self.topotin.getXMLNode(nodeRealization)
 
         if self.topography:
@@ -524,13 +530,13 @@ class TopographyRealization(Realization):
                 dsValue.getXMLNode(nodeTIN)
 
         if self.stages:
-            nodeStage = ET.SubElement(nodeRealization, "Stages")
+            nodeStage = ET.SubElement(nodeTIN, "Stages")
             for stage in self.stages.itervalues():
                 stage.getXMLNode(nodeStage)
 
         if self.assocated_surfaces:
-            nodeAssoc = ET.SubElement(nodeRealization, "AssocSurfaces")
-            for assoc in self.stages.itervalues():
+            nodeAssoc = ET.SubElement(nodeTIN, "AssocSurfaces")
+            for assoc in self.assocated_surfaces.itervalues():
                 assoc.getXMLNode(nodeAssoc)
 
         return nodeRealization
