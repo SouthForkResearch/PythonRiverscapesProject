@@ -439,10 +439,11 @@ class ConfinementRealization(Realization):
 
         return nodeRealization
 
-    def newAnalysisMovingWindow(self, analysisName, paramSeedPointDist, paramWindowSizes, outputSeedPoints,
-                                outputWindows):
+    def newAnalysisMovingWindow(self, analysisName, paramSeedPointDist, paramWindowSizes, outputSeedPoints, outputWindows, analysis_id=None):
+
         analysis = Analysis()
         analysis.create(analysisName, "MovingWindow")
+        analysis.id = analysis_id
 
         analysis.parameters["SeedPointDistance"] = paramSeedPointDist
         analysis.parameters["WindowSizes"] = paramWindowSizes
@@ -451,10 +452,11 @@ class ConfinementRealization(Realization):
 
         self.analyses[analysisName] = analysis
 
-    def newAnalysisSegmentedNetwork(self, analysisName, paramFieldSegments, paramFieldConfinement,
-                                    paramFieldConstriction, outputSegmentedConfinement):
+    def newAnalysisSegmentedNetwork(self, analysisName, paramFieldSegments, paramFieldConfinement, paramFieldConstriction, outputSegmentedConfinement, analysis_id=None):
+
         analysis = Analysis()
         analysis.create(analysisName, "ConfinementBySegments")
+        analysis.id = analysis_id
 
         analysis.parameters["SegmentField"] = paramFieldSegments
         analysis.parameters["ConfinementField"] = paramFieldConfinement
