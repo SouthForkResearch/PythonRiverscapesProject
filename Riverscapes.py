@@ -3,6 +3,8 @@
 from os import path
 from uuid import uuid4
 import xml.etree.ElementTree as ET
+
+
 # No arcpy or other non-standard dependencies please!
 
 class Project(object):
@@ -16,7 +18,7 @@ class Project(object):
         self.projectType = ""
         self.projectVersion = ""
         self.projectPath = ''
-        self.xmlname = ""
+        self.xmlname = 'project.rs.xml'
         self.riverscapes_program_version = "1.2"
         self.riverscapes_python_version = "1.0"
 
@@ -27,40 +29,39 @@ class Project(object):
         if xmlfile:
             self.loadProjectXML(xmlfile)
 
-    def create(self,projectName, projectType, projectVersion="", projectPath=""):
+    def create(self, projectName, projectType, projectVersion="", projectPath=""):
 
         self.name = projectName
         self.projectType = projectType
         self.projectVersion = projectVersion
-        self.xmlname = 'project.rs.xml'
         self.projectPath = projectPath
-        self.addProjectMetadata("RiverscapesProgramVersion",self.riverscapes_program_version)
-        self.addProjectMetadata("RiverscapesPythonProjectVersion",self.riverscapes_python_version)
+        self.addProjectMetadata("RiverscapesProgramVersion", self.riverscapes_program_version)
+        self.addProjectMetadata("RiverscapesPythonProjectVersion", self.riverscapes_python_version)
 
-    def addProjectMetadata(self,Name,Value):
+    def addProjectMetadata(self, Name, Value):
         self.ProjectMetadata[Name] = Value
 
-    def addInputDataset(self, name, id, relativePath, sourcePath):
+    def addInputDataset(self, name, id, relativePath, sourcePath=None, datasettype="Vector"):
 
         newInputDataset = Dataset()
-        newInputDataset.create(name,relativePath,origPath=sourcePath)
+        newInputDataset.create(name, relativePath, datasettype, sourcePath)
 
-        #int = len(self.InputDatasets)
+        # int = len(self.InputDatasets)
         newInputDataset.id = id
         self.InputDatasets[newInputDataset.name] = newInputDataset
 
-    def get_dataset_id(self,absfilename):
+    def get_dataset_id(self, absfilename):
 
-        relpath = path.relpath(absfilename,self.projectPath)
+        relpath = path.relpath(absfilename, self.projectPath)
         id = ""
 
-        for name,dataset in self.InputDatasets.iteritems():
+        for name, dataset in self.InputDatasets.iteritems():
             if relpath == dataset.relpath:
                 id = dataset.id
 
         return id
 
-    def loadProjectXML(self,XMLpath):
+    def loadProjectXML(self, XMLpath):
 
         self.projectPath = path.dirname(XMLpath)
         self.xmlname = path.basename(XMLpath)
@@ -78,7 +79,7 @@ class Project(object):
             self.ProjectMetadata[meta.get("name")] = meta.text
 
         # Load Input Datasets
-        for inputDatasetXML in root.findall("./Inputs/*"):#Vector
+        for inputDatasetXML in root.findall("./Inputs/*"):  # Vector
             inputDataset = Dataset()
             inputDataset.createFromXMLElement(inputDatasetXML)
             self.InputDatasets[inputDataset.id] = inputDataset
@@ -116,39 +117,40 @@ class Project(object):
         self.Realizations[realization.name] = realization
         return
 
-    def writeProjectXML(self,XMLpath=None):
+    def writeProjectXML(self, XMLpath=None):
 
         if not XMLpath:
             XMLpath = path.join(self.projectPath, self.xmlname)
 
         rootProject = ET.Element("Project")
-        rootProject.set("xmlns:xsi","http://www.w3.org/2001/XMLSchema-instance")
-        rootProject.set("xsi:noNamespaceSchemaLocation","https://raw.githubusercontent.com/Riverscapes/Program/master/Project/XSD/V1/Project.xsd")
+        rootProject.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
+        rootProject.set("xsi:noNamespaceSchemaLocation",
+                        "https://raw.githubusercontent.com/Riverscapes/Program/master/Project/XSD/V1/Project.xsd")
 
-        nodeName = ET.SubElement(rootProject,"Name")
+        nodeName = ET.SubElement(rootProject, "Name")
         nodeName.text = self.name
 
-        nodeType = ET.SubElement(rootProject,"ProjectType")
+        nodeType = ET.SubElement(rootProject, "ProjectType")
         nodeType.text = self.projectType
 
-        nodeMetadata = ET.SubElement(rootProject,"MetaData")
-        for metaName,metaValue in self.ProjectMetadata.iteritems():
-            nodeMeta = ET.SubElement(nodeMetadata,"Meta",{"name":metaName})
+        nodeMetadata = ET.SubElement(rootProject, "MetaData")
+        for metaName, metaValue in self.ProjectMetadata.iteritems():
+            nodeMeta = ET.SubElement(nodeMetadata, "Meta", {"name": metaName})
             nodeMeta.text = metaValue
 
         if len(self.InputDatasets) > 0:
-            nodeInputDatasets = ET.SubElement(rootProject,"Inputs")
-            for inputDatasetName,inputDataset in self.InputDatasets.iteritems():
+            nodeInputDatasets = ET.SubElement(rootProject, "Inputs")
+            for inputDatasetName, inputDataset in self.InputDatasets.iteritems():
                 nodeInputDataset = inputDataset.getXMLNode(nodeInputDatasets)
 
         if len(self.Realizations) > 0:
-            nodeRealizations = ET.SubElement(rootProject,"Realizations")
+            nodeRealizations = ET.SubElement(rootProject, "Realizations")
             for realizationName, realizationInstance in self.Realizations.iteritems():
                 nodeRealization = realizationInstance.getXMLNode(nodeRealizations)
 
         indent(rootProject)
         tree = ET.ElementTree(rootProject)
-        tree.write(XMLpath,'utf-8',True)
+        tree.write(XMLpath, 'utf-8', True)
 
         # TODO Add warning if xml does not validate??
 
@@ -156,9 +158,8 @@ class Project(object):
 
 
 class Realization(object):
-
     def __init__(self, realization_type):
-        self.promoted = ''
+        self.promoted = False
         self.dateCreated = ''
         self.productVersion = ''
         self.guid = ''
@@ -172,11 +173,8 @@ class Realization(object):
         self.inputs = {}
         self.outputs = {}
 
-    def create(self, name ):
-
+    def create(self, name):
         import datetime
-
-        self.promoted = ''
         self.dateCreated = str(datetime.datetime.utcnow())
         self.productVersion = ''
         self.guid = str(uuid4())
@@ -185,7 +183,7 @@ class Realization(object):
     def createFromXMLElement(self, xmlElement, dictInputDatasets):
 
         # Pull Realization Data
-        self.promoted =  xmlElement.get("promoted")
+        self.promoted = xmlElement.get("promoted")
         self.dateCreated = xmlElement.get("dateCreated")
         self.productVersion = xmlElement.get('productVersion')
         self.id = xmlElement.get('id')
@@ -209,42 +207,41 @@ class Realization(object):
 
         # Pull Inputs
 
-            #TODO Get inputs, possibly nested (need a way to store this for xml writing), could be ref or Dataset
+        # TODO Get inputs, possibly nested (need a way to store this for xml writing), could be ref or Dataset
 
         return
 
-    def getXMLNode(self,xmlNode):
+    def getXMLNode(self, xmlNode):
 
         # Prepare Attributes
         attributes = {}
-        attributes['promoted'] = self.promoted
-        attributes['dateCreated'] = self.dateCreated
-        attributes['id'] = self.id
+        attributes['promoted'] = str(self.promoted).lower()
+        attributes['dateCreated'] = str(self.dateCreated)
+        attributes['id'] = str(self.id)
         if self.productVersion:
-            attributes['productVersion'] = self.productVersion
+            attributes['productVersion'] = str(self.productVersion)
         if self.guid:
-            attributes['guid'] = self.guid
+            attributes['guid'] = str(self.guid)
 
-        nodeRealization = ET.SubElement(xmlNode,self.realization_type,attributes)
-        nodeRealizationName = ET.SubElement(nodeRealization,"Name")
+        nodeRealization = ET.SubElement(xmlNode, self.realization_type, attributes)
+        nodeRealizationName = ET.SubElement(nodeRealization, "Name")
         nodeRealizationName.text = self.name
 
         # Add metadata to xml
         if self.metadata:
-            nodeInputDatasetMetaData = ET.SubElement(nodeRealization,"MetaData")
+            nodeInputDatasetMetaData = ET.SubElement(nodeRealization, "MetaData")
             for metaName, metaValue in self.metadata.iteritems():
-                nodeInputDatasetMeta = ET.SubElement(nodeInputDatasetMetaData,"Meta",{"name":metaName})
+                nodeInputDatasetMeta = ET.SubElement(nodeInputDatasetMetaData, "Meta", {"name": metaName})
                 nodeInputDatasetMeta.text = metaValue
 
         # Add Params to XML
         if self.parameters:
-            nodeParameters = ET.SubElement(nodeRealization,"Parameters")
-            for paramName,paramValue in self.parameters.iteritems():
-                nodeParam = ET.SubElement(nodeParameters,"Param",{"name":paramName})
+            nodeParameters = ET.SubElement(nodeRealization, "Parameters")
+            for paramName, paramValue in self.parameters.iteritems():
+                nodeParam = ET.SubElement(nodeParameters, "Param", {"name": paramName})
                 nodeParam.text = paramValue
 
-
-        if self.realization_type not in ["Confinement","GNAT"]:
+        if self.realization_type not in ["Confinement", "GNAT"]:
             # inputs
 
             # Outputs?
@@ -256,18 +253,18 @@ class Realization(object):
 
     def getAnalysesNode(self, nodeRealization):
 
-        #Realization Analyses
-        nodeAnalyses = ET.SubElement(nodeRealization,"Analyses")
-        for analysisName, analysis in self.analyses.iteritems():
-            analysis.getXMLNode(nodeAnalyses)
+        # Realization Analyses
+        if self.analyses:
+            nodeAnalyses = ET.SubElement(nodeRealization, "Analyses")
+            for analysis in self.analyses.itervalues():
+                analysis.getXMLNode(nodeAnalyses)
 
         return nodeRealization
 
 
 class GNATRealization(Realization):
-
     def __init__(self):
-        Realization.__init__(self,"GNAT")
+        Realization.__init__(self, "GNAT")
 
         self.RawStreamNetwork = ''
         self.RawNetworkTable = ""
@@ -275,7 +272,7 @@ class GNATRealization(Realization):
         self.GNAT_StreamNetwork = Dataset()
         self.GNAT_NetworkTable = Dataset()
 
-    def createGNATRealization(self,name, refRawStreamNetwork, outputGNAT_Network, refRawNetworkTable=None,
+    def createGNATRealization(self, name, refRawStreamNetwork, outputGNAT_Network, refRawNetworkTable=None,
                               outputGNAT_Table=None):
 
         super(GNATRealization, self).create(name)
@@ -300,27 +297,28 @@ class GNATRealization(Realization):
             self.RawNetworkTable = xmlElement.find('./Inputs/RawNetworkTable').get('ref')
 
         # Pull Outputs
-        self.GNAT_StreamNetwork.createFromXMLElement(xmlElement.find("./Outputs/Vector")) # Named type GNAT_StreamNetwork???
+        self.GNAT_StreamNetwork.createFromXMLElement(
+            xmlElement.find("./Outputs/Vector"))  # Named type GNAT_StreamNetwork???
         if xmlElement.find("./Outputs/GNAT_NetworkTable"):
             self.GNAT_NetworkTable.createFromXMLElement(xmlElement.find("./Outputs/GNAT_NetworkTable"))
 
         return
 
-    def getXMLNode(self,xmlNode):
+    def getXMLNode(self, xmlNode):
 
         # Create Node
         nodeRealization = super(GNATRealization, self).getXMLNode(xmlNode)
 
         # GNAT Realization Inputs
-        nodeRealizationInputs = ET.SubElement(nodeRealization,"Inputs")
-        nodeRawStreamNetwork = ET.SubElement(nodeRealizationInputs,"RawStreamNetwork")
-        nodeRawStreamNetwork.set("ref",self.RawStreamNetwork)
+        nodeRealizationInputs = ET.SubElement(nodeRealization, "Inputs")
+        nodeRawStreamNetwork = ET.SubElement(nodeRealizationInputs, "RawStreamNetwork")
+        nodeRawStreamNetwork.set("ref", self.RawStreamNetwork)
         if self.RawNetworkTable:
-            nodeRawNetworkTable = ET.SubElement(nodeRealizationInputs,"RawNetworkTable")
-            nodeRawNetworkTable.set("ref",self.RawNetworkTable)
+            nodeRawNetworkTable = ET.SubElement(nodeRealizationInputs, "RawNetworkTable")
+            nodeRawNetworkTable.set("ref", self.RawNetworkTable)
 
         # GNAT Realization Outputs
-        nodeOutputs = ET.SubElement(nodeRealization,"Outputs")
+        nodeOutputs = ET.SubElement(nodeRealization, "Outputs")
         self.GNAT_StreamNetwork.getXMLNode(nodeOutputs)
         if self.GNAT_NetworkTable.name:
             self.GNAT_NetworkTable.getXMLNode(nodeOutputs)
@@ -359,9 +357,7 @@ class GNATRealization(Realization):
 
 
 class ConfinementRealization(Realization):
-
     def __init__(self):
-
         Realization.__init__(self, "Confinement")
 
         self.StreamNetwork = ''
@@ -409,7 +405,6 @@ class ConfinementRealization(Realization):
         self.OutputRawConfiningState = OutputRawConfiningState
 
     def createFromXMLElement(self, xmlElement, dictInputDatasets):
-
         super(ConfinementRealization, self).createFromXMLElement(xmlElement, dictInputDatasets)
 
         # Pull Inputs
@@ -423,22 +418,21 @@ class ConfinementRealization(Realization):
 
         return
 
-    def getXMLNode(self,xmlNode):
-
+    def getXMLNode(self, xmlNode):
         # Create Node
         nodeRealization = super(ConfinementRealization, self).getXMLNode(xmlNode)
 
         # Confinement Realization Inputs
-        nodeRealizationInputs = ET.SubElement(nodeRealization,"Inputs")
-        nodeValleyBottom = ET.SubElement(nodeRealizationInputs,"ValleyBottom")
-        nodeValleyBottom.set("ref",self.ValleyBottom)
-        nodeChannelPolygon = ET.SubElement(nodeRealizationInputs,"ChannelPolygon")
-        nodeChannelPolygon.set("ref",self.ChannelPolygon)
-        nodeStreamNetwork = ET.SubElement(nodeRealizationInputs,"StreamNetwork")
-        nodeStreamNetwork.set('ref',self.StreamNetwork)
+        nodeRealizationInputs = ET.SubElement(nodeRealization, "Inputs")
+        nodeValleyBottom = ET.SubElement(nodeRealizationInputs, "ValleyBottom")
+        nodeValleyBottom.set("ref", self.ValleyBottom)
+        nodeChannelPolygon = ET.SubElement(nodeRealizationInputs, "ChannelPolygon")
+        nodeChannelPolygon.set("ref", self.ChannelPolygon)
+        nodeStreamNetwork = ET.SubElement(nodeRealizationInputs, "StreamNetwork")
+        nodeStreamNetwork.set('ref', self.StreamNetwork)
 
         # Confinement Realization Outputs
-        nodeOutputs = ET.SubElement(nodeRealization,"Outputs")
+        nodeOutputs = ET.SubElement(nodeRealization, "Outputs")
         self.OutputRawConfiningState.getXMLNode(nodeOutputs)
         self.OutputConfiningMargins.getXMLNode(nodeOutputs)
 
@@ -446,10 +440,11 @@ class ConfinementRealization(Realization):
 
         return nodeRealization
 
-    def newAnalysisMovingWindow(self,analysisName,paramSeedPointDist,paramWindowSizes,outputSeedPoints,outputWindows):
+    def newAnalysisMovingWindow(self, analysisName, paramSeedPointDist, paramWindowSizes, outputSeedPoints, outputWindows, analysis_id=None):
 
         analysis = Analysis()
-        analysis.create(analysisName,"MovingWindow")
+        analysis.create(analysisName, "MovingWindow")
+        analysis.id = analysis_id
 
         analysis.parameters["SeedPointDistance"] = paramSeedPointDist
         analysis.parameters["WindowSizes"] = paramWindowSizes
@@ -458,10 +453,11 @@ class ConfinementRealization(Realization):
 
         self.analyses[analysisName] = analysis
 
-    def newAnalysisSegmentedNetwork(self, analysisName,paramFieldSegments,paramFieldConfinement,paramFieldConstriction,outputSegmentedConfinement):
+    def newAnalysisSegmentedNetwork(self, analysisName, paramFieldSegments, paramFieldConfinement, paramFieldConstriction, outputSegmentedConfinement, analysis_id=None):
 
         analysis = Analysis()
         analysis.create(analysisName, "ConfinementBySegments")
+        analysis.id = analysis_id
 
         analysis.parameters["SegmentField"] = paramFieldSegments
         analysis.parameters["ConfinementField"] = paramFieldConfinement
@@ -474,9 +470,8 @@ class ConfinementRealization(Realization):
 
 
 class VbetRealization(Realization):
-
     def __init__(self):
-        Realization.__init__(self,"VBET")
+        Realization.__init__(self, "VBET")
 
         self.TopographyDEM = Dataset()
         self.TopographyFlow = Dataset()
@@ -486,14 +481,69 @@ class VbetRealization(Realization):
         self.DrainageNetworkBuffers = {}
 
     def createFromXMLElement(self, xmlElement, dictInputDatasets):
-
-        super(VbetRealization, self).createFromXMLElement(xmlElement,dictInputDatasets)
+        super(VbetRealization, self).createFromXMLElement(xmlElement, dictInputDatasets)
 
         # TODO: get the rest of the inputs, but could be ref or actual dataset object...
 
 
-class Analysis(object):
+class SurveyDataRealization(Realization):
+    def __init__(self, projection_status):
+        Realization.__init__(self, "SurveyData")
+        self.projection = projection_status
+        self.datasets = {}
+        self.survey_extents = {}
 
+    def getXMLNode(self, xmlNode):
+        nodeRealization = super(SurveyDataRealization, self).getXMLNode(xmlNode)
+        nodeRealization.set("projected", str(self.projection).lower())
+
+        if self.datasets:
+            for dsName, dsValue in self.datasets.iteritems():
+                dsValue.getXMLNode(nodeRealization)
+
+        if self.survey_extents:
+            nodeSurveyExtents = ET.SubElement(nodeRealization, "SurveyExtents")
+            for extentName, extent in self.survey_extents.iteritems():
+                extent.getXMLNode(nodeSurveyExtents)
+
+        return nodeRealization
+
+
+class TopographyRealization(Realization):
+    def __init__(self, name, topotin, activetin=True):
+        Realization.__init__(self, "Topography")
+        self.create(name)
+        self.promoted = True
+        self.topotin = topotin
+        self.activetin = activetin
+        self.stages = {}
+        self.topography = {}
+        self.assocated_surfaces = {}
+
+    def getXMLNode(self, xmlNode):
+        nodeRealization = super(TopographyRealization, self).getXMLNode(xmlNode)
+
+        self.topotin.attributes['active'] = str(self.activetin).lower()
+        nodeTIN = self.topotin.getXMLNode(nodeRealization)
+
+        if self.topography:
+            for dsValue in self.topography.itervalues():
+                dsValue.getXMLNode(nodeTIN)
+
+        if self.stages:
+            nodeStage = ET.SubElement(nodeTIN, "Stages")
+            for stage in self.stages.itervalues():
+                stage.getXMLNode(nodeStage)
+
+        if self.assocated_surfaces:
+            nodeAssoc = ET.SubElement(nodeTIN, "AssocSurfaces")
+            for assoc in self.assocated_surfaces.itervalues():
+                assoc.getXMLNode(nodeAssoc)
+
+        return nodeRealization
+
+
+class Analysis(object):
     def __init__(self):
         self.name = ''
         self.type = ''
@@ -507,7 +557,7 @@ class Analysis(object):
         self.type = analysis_type
         return
 
-    def createFromXMLElement(self,xmlElement):
+    def createFromXMLElement(self, xmlElement):
 
         self.type = xmlElement.tag
         self.name = xmlElement.find("Name").text
@@ -531,20 +581,20 @@ class Analysis(object):
         self.parameters[parameterName] = parameterValue
         return
 
-    def getXMLNode(self,xmlNode):
+    def getXMLNode(self, xmlNode):
 
-        nodeAnalysis = ET.SubElement(xmlNode,self.type)
+        nodeAnalysis = ET.SubElement(xmlNode, self.type)
 
-        nodeAnalysisName = ET.SubElement(nodeAnalysis,'Name')
+        nodeAnalysisName = ET.SubElement(nodeAnalysis, 'Name')
         nodeAnalysisName.text = self.name
 
-        nodeParameters = ET.SubElement(nodeAnalysis,"Parameters")
-        for paramName,paramValue in self.parameters.iteritems():
-            nodeParam = ET.SubElement(nodeParameters,"Param",{"name":paramName})
+        nodeParameters = ET.SubElement(nodeAnalysis, "Parameters")
+        for paramName, paramValue in self.parameters.iteritems():
+            nodeParam = ET.SubElement(nodeParameters, "Param", {"name": paramName})
             nodeParam.text = paramValue
 
-        nodeOutputs = ET.SubElement(nodeAnalysis,"Outputs")
-        for outputName,outputDataset in self.outputDatasets.iteritems():
+        nodeOutputs = ET.SubElement(nodeAnalysis, "Outputs")
+        for outputName, outputDataset in self.outputDatasets.iteritems():
             outputDataset.getXMLNode(nodeOutputs)
 
         return xmlNode
@@ -674,7 +724,6 @@ class AttributeAnalysis(Analysis):
 
 
 class Dataset(object):
-
     def __init__(self):
         self.id = 'NotAssigned' # also ref
         self.name = ''
@@ -682,15 +731,16 @@ class Dataset(object):
         self.type = ''
         self.relpath = ''
         self.metadata = {}
+        self.attributes = {}
 
-    def create(self, name, relpath, type="Vector", origPath=""):
+    def create(self, name, relpath, type="Vector", origPath=None):
 
-        self.name = name # also ref
+        self.name = name  # also ref
         self.guid = str(uuid4())
         self.type = type
         self.relpath = relpath
 
-        self.id = "NotAssigned" # TODO make this unique!!!!
+        self.id = "NotAssigned"  # TODO make this unique!!!!
 
         if origPath:
             self.metadata["origPath"] = origPath
@@ -711,37 +761,34 @@ class Dataset(object):
 
         return
 
-    def getXMLNode(self,xmlNode):
+    def getXMLNode(self, xmlNode):
 
-        #Prepare Attributes
-        attributes = {}
-        attributes["id"] = self.id
+        # Prepare Attributes
+        self.attributes["id"] = self.id
         if self.guid:
-            attributes['guid'] = self.guid
+            self.attributes['guid'] = self.guid
 
         # Generate Node
-        nodeInputDataset = ET.SubElement(xmlNode,self.type,attributes)
+        nodeInputDataset = ET.SubElement(xmlNode, self.type, self.attributes)
 
         nodeInputDatasetName = ET.SubElement(nodeInputDataset, "Name")
         nodeInputDatasetName.text = self.name
-        nodeInputDatasetPath = ET.SubElement(nodeInputDataset,"Path")
+        nodeInputDatasetPath = ET.SubElement(nodeInputDataset, "Path")
         nodeInputDatasetPath.text = self.relpath
 
         if self.metadata:
-            nodeInputDatasetMetaData = ET.SubElement(nodeInputDataset,"MetaData")
+            nodeInputDatasetMetaData = ET.SubElement(nodeInputDataset, "MetaData")
             for metaName, metaValue in self.metadata.iteritems():
-                nodeInputDatasetMeta = ET.SubElement(nodeInputDatasetMetaData,"Meta",{"name":metaName})
+                nodeInputDatasetMeta = ET.SubElement(nodeInputDatasetMetaData, "Meta", {"name": metaName})
                 nodeInputDatasetMeta.text = metaValue
 
-        return xmlNode
+        return nodeInputDataset
 
-    def absolutePath(self,projectPath):
+    def absolutePath(self, projectPath):
+        return path.join(projectPath, self.relpath)
 
-        return path.join(projectPath,self.relpath)
 
-
-def get_input_id(inpath,strInputName):
-
+def get_input_id(inpath, strInputName):
     import glob
 
     int_id = len(glob.glob(path.join(inpath, strInputName + "*"))) + 1
@@ -756,7 +803,7 @@ def indent(elem, level=0, more_sibs=False):
 
     i = "\n"
     if level:
-        i += (level-1) * '  '
+        i += (level - 1) * '  '
     num_kids = len(elem)
     if num_kids:
         if not elem.text or not elem.text.strip():
@@ -765,7 +812,7 @@ def indent(elem, level=0, more_sibs=False):
                 elem.text += '  '
         count = 0
         for kid in elem:
-            indent(kid, level+1, count < num_kids - 1)
+            indent(kid, level + 1, count < num_kids - 1)
             count += 1
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
@@ -779,8 +826,6 @@ def indent(elem, level=0, more_sibs=False):
 
 
 def get_program_watersheds():
-
     listWatersheds = []
 
     return listWatersheds
-
