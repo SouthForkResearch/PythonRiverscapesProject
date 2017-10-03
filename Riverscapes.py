@@ -258,7 +258,7 @@ class Realization(object):
 
         #Realization Analyses
         nodeAnalyses = ET.SubElement(nodeRealization,"Analyses")
-        for analysisName,analysis in self.analyses.iteritems():
+        for analysisName, analysis in self.analyses.iteritems():
             analysis.getXMLNode(nodeAnalyses)
 
         return nodeRealization
@@ -339,6 +339,7 @@ class GNATRealization(Realization):
                                        paramBoolSplitAtConfluences,
                                        paramBoolRetainAttributes,
                                        outputSegmentedConfinement):
+
 
         analysis = Analysis()
         analysis.create(analysisName, "SegmentedNetworkAnalysis")
@@ -491,7 +492,6 @@ class VbetRealization(Realization):
         # TODO: get the rest of the inputs, but could be ref or actual dataset object...
 
 
-
 class Analysis(object):
 
     def __init__(self):
@@ -500,8 +500,9 @@ class Analysis(object):
         self.id = ""
         self.parameters = {}
         self.outputDatasets = {}
+        self.attributeAnalyses = {}
 
-    def create(self,analysis_name, analysis_type):
+    def create(self, analysis_name, analysis_type):
         self.name = analysis_name
         self.type = analysis_type
         return
@@ -519,9 +520,14 @@ class Analysis(object):
             outputDS.createFromXMLElement(output)
             self.outputDatasets[outputDS.name] = outputDS
 
+        for analysis in xmlElement.findall("./AttributeAnalyses/*"):
+            attributeAnalysis = AttributeAnalysis()
+            attributeAnalysis.createFromXMLElement(analysis)
+            self.attributeAnalyses[attributeAnalysis.name] = attributeAnalysis
+
         return
 
-    def addParameter(self,parameterName,parameterValue):
+    def addParameter(self, parameterName, parameterValue):
         self.parameters[parameterName] = parameterValue
         return
 
@@ -541,15 +547,136 @@ class Analysis(object):
         for outputName,outputDataset in self.outputDatasets.iteritems():
             outputDataset.getXMLNode(nodeOutputs)
 
-        #TODO Writing Analysis Node
-
         return xmlNode
+
+    def getAttributeAnalysesNode(self, nodeAnalysis):
+
+        #Realization Analyses
+        nodeAttrbAnalyses = ET.SubElement(nodeAnalysis,"AttributeAnalyses")
+        for analysisName, analysis in self.attributeAnalyses.iteritems():
+            analysis.getXMLNode(nodeAttrbAnalyses)
+
+        return nodeAttrbAnalyses
+
+    def newAnalysisGradient(self,
+                            analysisName,
+                            paramGradientField,
+                            inputDEM,
+                            segmentedNetworkID):
+        attrbAnalysis = AttributeAnalysis()
+        attrbAnalysis.createAttributeAnalysis(analysisName, "GradientAnalysis", segmentedNetworkID)
+        attrbAnalysis.parameters["GradientField"] = paramGradientField
+        attrbAnalysis.inputDatasets["DEM"] = inputDEM
+
+        self.attributeAnalyses[analysisName] = attrbAnalysis
+
+        return
+
+    def newAnalysisThreadedness(self,
+                                analysisName,
+                                paramFieldNodesBM,
+                                paramFieldNodesBB,
+                                paramFieldNodesTC,
+                                inputThreadedNetwork,
+                                segmentedNetworkID,
+                                outputNodes):
+        attrbAnalysis = AttributeAnalysis()
+        attrbAnalysis.createAttributeAnalysis(analysisName, "ThreadedAnalysis", segmentedNetworkID)
+        attrbAnalysis.parameters["FieldNodesBM"] = paramFieldNodesBM
+        attrbAnalysis.parameters["FieldNodesBB"] = paramFieldNodesBB
+        attrbAnalysis.parameters["FieldNodesTC"] = paramFieldNodesTC
+        attrbAnalysis.inputDatasets[inputThreadedNetwork.name] = inputThreadedNetwork
+        attrbAnalysis.outputDatasets["Vector"] = outputNodes
+
+        self.attributeAnalyses[analysisName] = attrbAnalysis
+
+        return
+
+    def newAnalysisSinuosityPlanform(self,
+                                     analysisName,
+                                     paramChannelSinuosityField,
+                                     paramPlanformField,
+                                     inputValleyCenterline,
+                                     inputValleyBottom,
+                                     segmentedNetworkID,
+                                     outputValleyCenterlineSinuosity):
+        attrbAnalysis = AttributeAnalysis()
+        attrbAnalysis.createAttributeAnalysis(analysisName, "SinuosityPlanformAnalysis", segmentedNetworkID)
+        attrbAnalysis.parameters["ChannelSinuosityField"] = paramChannelSinuosityField
+        attrbAnalysis.parameters["PlanformField"] = paramPlanformField
+        attrbAnalysis.inputDatasets[inputValleyCenterline.name] = inputValleyCenterline
+        attrbAnalysis.inputDatasets[inputValleyBottom.name] = inputValleyBottom
+        attrbAnalysis.outputDatasets["Vector"] = outputValleyCenterlineSinuosity
+
+        self.attributeAnalyses[analysisName] = attrbAnalysis
+
+        return
+
+
+class AttributeAnalysis(Analysis):
+
+    def __init__(self):
+        Analysis.__init__(self)
+
+        self.inputDatasets = {}
+        self.segmentedNetwork = None
+
+    def createAttributeAnalysis(self, name, type, segmentedNetworkID):
+        # create new empty Attribute Analysis object
+        super(AttributeAnalysis, self).create(name, type)
+
+        self.segmentedNetwork = segmentedNetworkID
+
+        return
+
+    def createFromXMLElement(self, xmlElement):
+
+        #super(AttributeAnalysis, self).createFromXMLElement(xmlElement)
+
+        # pull attribute analysis inputs
+        self.type = xmlElement.tag
+
+        self.name = xmlElement.find("Name").text
+        for param in xmlElement.findall("/Parameters/Param"):
+            self.parameters[param.get('name')] = param.text
+
+        for input in xmlElement.findall("./Inputs/*"):
+            if input.tag == "SegmentedNetwork":
+                self.segmentedNetwork = input.get("ref")
+            else:
+                inputDS = Dataset()
+                inputDS.createFromXMLElement(input)
+                self.inputDatasets[inputDS.name] = inputDS
+
+        for output in xmlElement.findall("./Outputs/*"):
+            outputDS = Dataset()
+            outputDS.createFromXMLElement(output)
+            self.outputDatasets[outputDS.name] = outputDS
+
+        return
+
+    def getXMLNode(self,xmlNode):
+
+        # Create Node
+        nodeAnalysis = super(AttributeAnalysis, self).getXMLNode(xmlNode)
+
+        # Get analysis output
+        nodeInputs = ET.SubElement(nodeAnalysis,"./Inputs/*")
+        for input in nodeInputs:
+            input.getXMLNode(nodeInputs)
+
+        nodeSegmentednetwork = ET.SubElement(nodeInputs, "SegmentedNetwork")
+        nodeSegmentednetwork.set("ref", self.segmentedNetwork)
+
+        nodeAnalysis = self.getAttributeAnalysesNode(nodeAnalysis)
+
+        return nodeAnalysis
 
 
 class Dataset(object):
 
     def __init__(self):
-        self.id = 'NotAssinged' # also ref
+        self.id = 'NotAssigned' # also ref
         self.name = ''
         self.guid = ''
         self.type = ''
