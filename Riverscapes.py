@@ -597,16 +597,11 @@ class Analysis(object):
         for outputName, outputDataset in self.outputDatasets.iteritems():
             outputDataset.getXMLNode(nodeOutputs)
 
+        nodeAttributeAnalyses = ET.SubElement(nodeAnalysis, "AttributeAnalyses")
+        for attributeAnalysisName, attributeAnalysis in self.attributeAnalyses.iteritems():
+            attributeAnalysis.getXMLNode(nodeAttributeAnalyses)
+
         return xmlNode
-
-    def getAttributeAnalysesNode(self, nodeAnalysis):
-
-        #Realization Analyses
-        nodeAttrbAnalyses = ET.SubElement(nodeAnalysis,"AttributeAnalyses")
-        for analysisName, analysis in self.attributeAnalyses.iteritems():
-            analysis.getXMLNode(nodeAttrbAnalyses)
-
-        return nodeAttrbAnalyses
 
     def newAnalysisGradient(self,
                             analysisName,
@@ -681,8 +676,6 @@ class AttributeAnalysis(Analysis):
 
     def createFromXMLElement(self, xmlElement):
 
-        #super(AttributeAnalysis, self).createFromXMLElement(xmlElement)
-
         # pull attribute analysis inputs
         self.type = xmlElement.tag
 
@@ -708,19 +701,17 @@ class AttributeAnalysis(Analysis):
     def getXMLNode(self,xmlNode):
 
         # Create Node
-        nodeAnalysis = super(AttributeAnalysis, self).getXMLNode(xmlNode)
+        nodeAttributeAnalysis = super(AttributeAnalysis, self).getXMLNode(xmlNode)
 
         # Get analysis output
-        nodeInputs = ET.SubElement(nodeAnalysis,"./Inputs/*")
+        nodeInputs = ET.SubElement(nodeAttributeAnalysis,"./Inputs/*")
         for input in nodeInputs:
             input.getXMLNode(nodeInputs)
 
         nodeSegmentednetwork = ET.SubElement(nodeInputs, "SegmentedNetwork")
         nodeSegmentednetwork.set("ref", self.segmentedNetwork)
 
-        nodeAnalysis = self.getAttributeAnalysesNode(nodeAnalysis)
-
-        return nodeAnalysis
+        return xmlNode
 
 
 class Dataset(object):
