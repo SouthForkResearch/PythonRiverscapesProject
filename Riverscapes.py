@@ -637,21 +637,35 @@ class Analysis(object):
 
         return
 
-    def newAnalysisSinuosityPlanform(self,
-                                     analysisName,
-                                     paramChannelSinuosityField,
-                                     paramPlanformField,
-                                     inputValleyCenterline,
-                                     inputValleyBottom,
-                                     segmentedNetworkID,
-                                     outputValleyCenterlineSinuosity):
+    def newAnalysisSinuosity(self,
+                             analysisName,
+                             paramChannelSinuosityField,
+                             segmentedNetworkID):
         attrbAnalysis = AttributeAnalysis()
-        attrbAnalysis.createAttributeAnalysis(analysisName, "SinuosityPlanformAnalysis", segmentedNetworkID)
+        attrbAnalysis.createAttributeAnalysis(analysisName, "SinuosityAnalysis", segmentedNetworkID)
         attrbAnalysis.parameters["ChannelSinuosityField"] = paramChannelSinuosityField
+
+        self.attributeAnalyses[analysisName] = attrbAnalysis
+
+        return
+
+    def newAnalysisPlanform(self,
+                            analysisName,
+                            paramValleySinuosityField,
+                            paramPlanformField,
+                            inputValleyCenterline,
+                            inputValleyBottom,
+                            segmentedNetworkID,
+                            outputValleyCenterlineSinuosity,
+                            outputPlanform):
+        attrbAnalysis = AttributeAnalysis()
+        attrbAnalysis.createAttributeAnalysis(analysisName, "PlanformAnalysis", segmentedNetworkID)
+        attrbAnalysis.parameters["ChannelSinuosityField"] = paramValleySinuosityField
         attrbAnalysis.parameters["PlanformField"] = paramPlanformField
         attrbAnalysis.inputDatasets[inputValleyCenterline.name] = inputValleyCenterline
         attrbAnalysis.inputDatasets[inputValleyBottom.name] = inputValleyBottom
         attrbAnalysis.outputDatasets["Vector"] = outputValleyCenterlineSinuosity
+        attrbAnalysis.outputDatasets["Vector"] = outputPlanform
 
         self.attributeAnalyses[analysisName] = attrbAnalysis
 
@@ -680,7 +694,7 @@ class AttributeAnalysis(Analysis):
         self.type = xmlElement.tag
 
         self.name = xmlElement.find("Name").text
-        for param in xmlElement.findall("/Parameters/Param"):
+        for param in xmlElement.findall("./Parameters/Param"):
             self.parameters[param.get('name')] = param.text
 
         for input in xmlElement.findall("./Inputs/*"):
@@ -701,15 +715,13 @@ class AttributeAnalysis(Analysis):
     def getXMLNode(self,xmlNode):
 
         # Create Node
-        nodeAttributeAnalysis = super(AttributeAnalysis, self).getXMLNode(xmlNode)
+        nodeAttributeAnalyses = super(AttributeAnalysis, self).getXMLNode(xmlNode)
 
+        # TODO This is not working correctly, so Attribute Analysis Inputs nodes are currently disabled
         # Get analysis output
-        nodeInputs = ET.SubElement(nodeAttributeAnalysis,"./Inputs/*")
-        for input in nodeInputs:
-            input.getXMLNode(nodeInputs)
-
-        nodeSegmentednetwork = ET.SubElement(nodeInputs, "SegmentedNetwork")
-        nodeSegmentednetwork.set("ref", self.segmentedNetwork)
+        # nodeInputs = ET.SubElement(nodeAttributeAnalyses,"Inputs")
+        # for inputName, inputDataset in self.inputDatasets.iteritems():
+        #     inputDataset.getXMLNode(nodeInputs)
 
         return xmlNode
 
