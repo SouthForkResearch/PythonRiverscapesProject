@@ -100,20 +100,10 @@ class Project(object):
         return
 
     def get_next_realization_id(self):
+        return "{}_{}".format(self.projectType, str(len(self.Realizations) + 1).zfill(3))
 
-        intRealizations = len(self.Realizations)
-        realization_id = self.projectType + "_" + str(intRealizations + 1).zfill(3)
-
-        return realization_id
-
-    def addRealization(self, realization, realization_id=""):
-
-        if realization_id:
-            realization.id = realization_id
-        else:
-            intRealizations = len(self.Realizations)
-            realization.id = self.projectType + "_" + str(intRealizations + 1).zfill(3)
-
+    def addRealization(self, realization, realization_id=None):
+        realization.id = realization_id if realization_id else self.get_next_realization_id()
         self.Realizations[realization.name] = realization
         return
 
@@ -549,7 +539,9 @@ class Analysis(object):
         self.type = ''
         self.id = ""
         self.parameters = {}
+        self.inputDatasets = {}
         self.outputDatasets = {}
+        self.metadata = {}
         self.attributeAnalyses = {}
 
     def create(self, analysis_name, analysis_type):
@@ -564,6 +556,9 @@ class Analysis(object):
 
         for param in xmlElement.findall("./Parameters/Param"):
             self.parameters[param.get('name')] = param.text
+
+        for nodeMeta in xmlElement.findall("./MetaData/Meta"):
+            self.metadata[nodeMeta.get('name')] = nodeMeta.text
 
         for output in xmlElement.findall("./Outputs/*"):
             outputDS = Dataset()
@@ -581,6 +576,10 @@ class Analysis(object):
         self.parameters[parameterName] = parameterValue
         return
 
+    def addMetaData(self, metadataName, metadataValue):
+        self.metadata[metadataName] = metadataValue
+        return
+
     def getXMLNode(self, xmlNode):
 
         nodeAnalysis = ET.SubElement(xmlNode, self.type)
@@ -588,17 +587,27 @@ class Analysis(object):
         nodeAnalysisName = ET.SubElement(nodeAnalysis, 'Name')
         nodeAnalysisName.text = self.name
 
-        nodeParameters = ET.SubElement(nodeAnalysis, "Parameters")
+        nodeInputs = ET.SubElement(nodeAnalysis, "Inputs") if self.inputDatasets else None
+        for inputDataset in self.inputDatasets.itervalues():
+            inputDataset.getXMLNode(nodeInputs)
+
+        # Add metadata to xml
+        nodeAnalysisMetaData = ET.SubElement(nodeAnalysis, "MetaData") if self.metadata else None
+        for metaName, metaValue in self.metadata.iteritems():
+            nodeMeta = ET.SubElement(nodeAnalysisMetaData, "Meta", {"name": metaName})
+            nodeMeta.text = metaValue
+
+        nodeParameters = ET.SubElement(nodeAnalysis, "Parameters") if self.parameters else None
         for paramName, paramValue in self.parameters.iteritems():
             nodeParam = ET.SubElement(nodeParameters, "Param", {"name": paramName})
             nodeParam.text = paramValue
 
-        nodeOutputs = ET.SubElement(nodeAnalysis, "Outputs")
-        for outputName, outputDataset in self.outputDatasets.iteritems():
+        nodeOutputs = ET.SubElement(nodeAnalysis, "Outputs") if self.outputDatasets else None
+        for outputDataset in self.outputDatasets.itervalues():
             outputDataset.getXMLNode(nodeOutputs)
 
-        nodeAttributeAnalyses = ET.SubElement(nodeAnalysis, "AttributeAnalyses")
-        for attributeAnalysisName, attributeAnalysis in self.attributeAnalyses.iteritems():
+        nodeAttributeAnalyses = ET.SubElement(nodeAnalysis, "AttributeAnalyses") if self.attributeAnalyses else None
+        for attributeAnalysis in self.attributeAnalyses.itervalues():
             attributeAnalysis.getXMLNode(nodeAttributeAnalyses)
 
         return xmlNode
@@ -649,23 +658,21 @@ class Analysis(object):
 
         return
 
-    def newAnalysisPlanform(self,
-                            analysisName,
-                            paramValleySinuosityField,
-                            paramPlanformField,
-                            inputValleyCenterline,
-                            inputValleyBottom,
-                            segmentedNetworkID,
-                            outputValleyCenterlineSinuosity,
-                            outputPlanform):
-        attrbAnalysis = AttributeAnalysis()
-        attrbAnalysis.createAttributeAnalysis(analysisName, "PlanformAnalysis", segmentedNetworkID)
-        attrbAnalysis.parameters["ChannelSinuosityField"] = paramValleySinuosityField
-        attrbAnalysis.parameters["PlanformField"] = paramPlanformField
-        attrbAnalysis.inputDatasets[inputValleyCenterline.name] = inputValleyCenterline
-        attrbAnalysis.inputDatasets[inputValleyBottom.name] = inputValleyBottom
-        attrbAnalysis.outputDatasets["Vector"] = outputValleyCenterlineSinuosity
-        attrbAnalysis.outputDatasets["Vector"] = outputPlanform
+    def newAnalysisSinuosityAttributes(self,
+                                       analysisName,
+                                       inputVBCenterline,
+                                       paramChannelSinuosityField,
+                                       paramPlanformSinuosityField,
+                                       paramValleyBottomSinuosityField,
+                                       tool_version):
+
+        attrbAnalysis = Analysis()
+        attrbAnalysis.create(analysisName, "SinuosityAttributesAnalysis")
+        attrbAnalysis.parameters["ChannelSinuosityField"] = paramChannelSinuosityField
+        attrbAnalysis.parameters["PlanformSinuosityField"] = paramPlanformSinuosityField
+        attrbAnalysis.parameters["VBSinuosityField"] = paramValleyBottomSinuosityField
+        attrbAnalysis.inputDatasets[inputVBCenterline.name] = inputVBCenterline
+        attrbAnalysis.metadata["Version"] = str(tool_version)
 
         self.attributeAnalyses[analysisName] = attrbAnalysis
 
@@ -715,6 +722,7 @@ class AttributeAnalysis(Analysis):
     def getXMLNode(self,xmlNode):
 
         # Create Node
+
         nodeAttributeAnalyses = super(AttributeAnalysis, self).getXMLNode(xmlNode)
 
         # TODO This is not working correctly, so Attribute Analysis Inputs nodes are currently disabled
@@ -793,9 +801,7 @@ class Dataset(object):
 
 def get_input_id(inpath, strInputName):
     import glob
-
     int_id = len(glob.glob(path.join(inpath, strInputName + "*"))) + 1
-
     return strInputName + str(int_id).zfill(3)
 
 
